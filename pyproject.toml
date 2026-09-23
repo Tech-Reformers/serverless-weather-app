@@ -1,0 +1,19 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: unit tests (fast, no external dependencies)",
+    "integration: integration tests (require LocalStack or AWS)",
+    "e2e: end-to-end tests (require deployed infrastructure)",
+    "property: property-based tests using Hypothesis",
+    "performance: latency and load tests",
+    "slow: alias for integration + e2e tests that should be skipped in fast CI",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true

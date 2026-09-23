@@ -1,0 +1,27 @@
+# AWS SDK
+boto3==1.34.34
+botocore==1.34.34
+aws-xray-sdk==2.12.0
+
+# AWS CDK
+aws-cdk-lib==2.127.0
+constructs==10.3.0
+
+# Data validation
+pydantic==2.6.1
+
+# HTTP client
+httpx==0.26.0
+
+# Structured logging
+structlog==24.1.0
+
+# Testing
+pytest==8.0.2
+pytest-asyncio==0.23.5
+pytest-mock==3.12.0
+hypothesis==6.98.15
+
+# Type checking (dev)
+mypy==1.8.0
+boto3-stubs[dynamodb,secretsmanager,lambda]==1.34.34
