@@ -327,10 +327,32 @@ class WeatherAppStack(Stack):
             "LOG_LEVEL": "INFO",
         }
 
-        # Shared Lambda code directory — src/ will be built & deployed here.
-        # The inline placeholder code lets CDK synthesise without real source.
-        placeholder_code = _lambda.Code.from_inline(
-            "def handler(event, context):\n    return {'statusCode': 200, 'body': '{}'}\n"
+        # Bundle the repo root as the Lambda deployment package.
+        # CDK runs pip install inside a Python 3.12 Lambda-compatible Docker image,
+        # producing a /asset-output directory that Lambda unzips into /var/task.
+        # The src/ tree lands at /var/task/src so handler paths like
+        # "src.api.handlers.weather_handler.handler" resolve correctly.
+        import os as _os
+        _repo_root = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), ".."))
+
+        lambda_code = _lambda.Code.from_asset(
+            _repo_root,
+            bundling=cdk.BundlingOptions(
+                image=_lambda.Runtime.PYTHON_3_12.bundling_image,
+                command=[
+                    "bash", "-c",
+                    " && ".join([
+                        # Install runtime-only deps into /asset-output
+                        "pip install -r /asset-input/infrastructure/requirements-lambda.txt "
+                        "-t /asset-output --quiet --no-cache-dir",
+                        # Copy application source
+                        "cp -r /asset-input/src /asset-output/src",
+                        # Copy top-level __init__.py if it exists
+                        "[ -f /asset-input/__init__.py ] && "
+                        "cp /asset-input/__init__.py /asset-output/__init__.py || true",
+                    ]),
+                ],
+            ),
         )
 
         # -- Location Lambda -----------------------------------------------
@@ -340,7 +362,7 @@ class WeatherAppStack(Stack):
             function_name="weather-app-location",
             runtime=LAMBDA_RUNTIME,
             handler="src.api.handlers.location_handler.handler",
-            code=placeholder_code,
+            code=lambda_code,
             memory_size=LAMBDA_MEMORY_MB,
             timeout=LAMBDA_TIMEOUT_DEFAULT,
             role=self.location_lambda_role,
@@ -362,7 +384,7 @@ class WeatherAppStack(Stack):
             function_name="weather-app-weather",
             runtime=LAMBDA_RUNTIME,
             handler="src.api.handlers.weather_handler.handler",
-            code=placeholder_code,
+            code=lambda_code,
             memory_size=LAMBDA_MEMORY_MB,
             timeout=LAMBDA_TIMEOUT_DEFAULT,
             role=self.weather_lambda_role,
@@ -383,7 +405,7 @@ class WeatherAppStack(Stack):
             function_name="weather-app-forecast",
             runtime=LAMBDA_RUNTIME,
             handler="src.api.handlers.forecast_handler.handler",
-            code=placeholder_code,
+            code=lambda_code,
             memory_size=LAMBDA_MEMORY_MB,
             timeout=LAMBDA_TIMEOUT_DEFAULT,
             role=self.forecast_lambda_role,
@@ -405,7 +427,7 @@ class WeatherAppStack(Stack):
             function_name="weather-app-favorites",
             runtime=LAMBDA_RUNTIME,
             handler="src.api.handlers.favorites_handler.handler",
-            code=placeholder_code,
+            code=lambda_code,
             memory_size=LAMBDA_MEMORY_MB,
             timeout=LAMBDA_TIMEOUT_DEFAULT,
             role=self.favorites_lambda_role,
@@ -425,7 +447,7 @@ class WeatherAppStack(Stack):
             function_name="weather-app-unit",
             runtime=LAMBDA_RUNTIME,
             handler="src.api.handlers.preferences_handler.handler",
-            code=placeholder_code,
+            code=lambda_code,
             memory_size=LAMBDA_MEMORY_MB,
             timeout=LAMBDA_TIMEOUT_DEFAULT,
             role=self.unit_lambda_role,
@@ -506,76 +528,6 @@ class WeatherAppStack(Stack):
                 # Detailed CloudWatch metrics per resource/method
                 data_trace_enabled=False,  # avoid PII in logs
                 logging_level=apigw.MethodLoggingLevel.ERROR,
-                # ----------------------------------------------------------------
-                # Per-method cache-key configuration — task 10.1
-                # ----------------------------------------------------------------
-                # Endpoints that should be cached include the relevant query params
-                # as cache-key components so different parameter combinations are
-                # cached independently.  Mutation endpoints and force-refresh have
-                # caching_enabled=False so they always hit Lambda.
-                # ----------------------------------------------------------------
-                method_options={
-                    # GET /locations/search — cache keyed on ?q
-                    "~1locations~1search/GET": apigw.MethodDeploymentOptions(
-                        caching_enabled=True,
-                        cache_ttl=Duration.seconds(300),
-                        cache_key_parameters=[
-                            "method.request.querystring.q",
-                        ],
-                    ),
-                    # GET /weather/current — cache keyed on ?lat, ?lon, ?units
-                    "~1weather~1current/GET": apigw.MethodDeploymentOptions(
-                        caching_enabled=True,
-                        cache_ttl=Duration.seconds(300),
-                        cache_key_parameters=[
-                            "method.request.querystring.lat",
-                            "method.request.querystring.lon",
-                            "method.request.querystring.units",
-                        ],
-                    ),
-                    # POST /weather/refresh — always fresh, never cache
-                    "~1weather~1refresh/POST": apigw.MethodDeploymentOptions(
-                        caching_enabled=False,
-                    ),
-                    # GET /weather/forecast/hourly — cache keyed on ?lat, ?lon
-                    "~1weather~1forecast~1hourly/GET": apigw.MethodDeploymentOptions(
-                        caching_enabled=True,
-                        cache_ttl=Duration.seconds(300),
-                        cache_key_parameters=[
-                            "method.request.querystring.lat",
-                            "method.request.querystring.lon",
-                        ],
-                    ),
-                    # GET /weather/forecast/daily — cache keyed on ?lat, ?lon
-                    "~1weather~1forecast~1daily/GET": apigw.MethodDeploymentOptions(
-                        caching_enabled=True,
-                        cache_ttl=Duration.seconds(300),
-                        cache_key_parameters=[
-                            "method.request.querystring.lat",
-                            "method.request.querystring.lon",
-                        ],
-                    ),
-                    # GET /preferences/units — user-specific, 1-minute private cache
-                    "~1preferences~1units/GET": apigw.MethodDeploymentOptions(
-                        caching_enabled=True,
-                        cache_ttl=Duration.seconds(60),
-                        cache_key_parameters=[
-                            "method.request.querystring.user_id",
-                        ],
-                    ),
-                    # PUT /preferences/units — mutation, never cache
-                    "~1preferences~1units/PUT": apigw.MethodDeploymentOptions(
-                        caching_enabled=False,
-                    ),
-                    # POST /favorites — mutation, never cache
-                    "~1favorites/POST": apigw.MethodDeploymentOptions(
-                        caching_enabled=False,
-                    ),
-                    # DELETE /favorites/{location_id} — mutation, never cache
-                    "~1favorites~1{location_id}/DELETE": apigw.MethodDeploymentOptions(
-                        caching_enabled=False,
-                    ),
-                },
             ),
             default_cors_preflight_options=apigw.CorsOptions(
                 allow_origins=apigw.Cors.ALL_ORIGINS,

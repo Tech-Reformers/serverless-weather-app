@@ -19,7 +19,7 @@ WeatherAppStack(
     "WeatherAppStack",
     env=cdk.Environment(
         account=os.environ.get("CDK_DEFAULT_ACCOUNT"),
-        region=os.environ.get("CDK_DEFAULT_REGION", "us-east-1"),
+        region=os.environ.get("CDK_DEFAULT_REGION", "us-west-2"),
     ),
     description="Serverless Weather App — API Gateway, Lambda, DynamoDB, Secrets Manager",
 )
