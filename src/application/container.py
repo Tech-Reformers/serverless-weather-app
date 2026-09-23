@@ -129,27 +129,32 @@ class ServiceContainer:
     def weather_api_adapter(self) -> WeatherAPIAdapter:
         """HTTP adapter for the external weather data provider.
 
-        API key and base URL are resolved from environment variables
-        (``WEATHER_API_KEY`` / ``WEATHER_API_URL``).  The adapter can also
-        accept keys from ``SecretsManagerAdapter`` when the handler calls
-        ``_resolve_api_key()`` in a subclass or wrapper — the current
-        implementation uses the env-var path for simplicity.
+        API key is fetched from Secrets Manager when ``WEATHER_API_SECRET_ARN``
+        is set (production/Lambda), falling back to the ``WEATHER_API_KEY``
+        env var for local development.
         """
+        api_key = os.environ.get("WEATHER_API_KEY")
+        if not api_key and os.environ.get("WEATHER_API_SECRET_ARN"):
+            api_key = self.secrets_adapter.get_openweather_key()
         return WeatherAPIAdapter(
             api_url=os.environ.get("WEATHER_API_URL"),
-            api_key=os.environ.get("WEATHER_API_KEY"),
+            api_key=api_key,
         )
 
     @cached_property
     def geocoding_adapter(self) -> GeocodingAdapter:
         """HTTP adapter for the external geocoding provider.
 
-        API key is resolved from ``GEOCODING_API_KEY`` (or ``WEATHER_API_KEY``
-        as a fallback) and the base URL from ``GEOCODING_API_URL``.
+        API key is fetched from Secrets Manager when ``WEATHER_API_SECRET_ARN``
+        is set (production/Lambda), falling back to env vars for local dev.
+        OpenWeatherMap uses the same key for geocoding and weather data.
         """
+        api_key = os.environ.get("GEOCODING_API_KEY") or os.environ.get("WEATHER_API_KEY")
+        if not api_key and os.environ.get("WEATHER_API_SECRET_ARN"):
+            api_key = self.secrets_adapter.get_geocoding_key()
         return GeocodingAdapter(
             api_url=os.environ.get("GEOCODING_API_URL"),
-            api_key=os.environ.get("GEOCODING_API_KEY") or os.environ.get("WEATHER_API_KEY"),
+            api_key=api_key,
         )
 
     @cached_property

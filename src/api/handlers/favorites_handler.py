@@ -55,29 +55,10 @@ _service: Optional[FavoritesService] = None
 
 
 def _get_service() -> FavoritesService:
-    """Return the module-level :class:`FavoritesService`, creating it on
-    first call (lazy init / warm-Lambda reuse pattern).
-
-    Wires together:
-    * :class:`~src.infrastructure.aws.dynamodb_adapter.DynamoDBFavoritesService`
-      (reads ``FAVORITES_TABLE_NAME`` env var, defaults to
-      ``"weather-app-favorites"``).
-    * :class:`~src.infrastructure.external.weather_api_adapter.WeatherAPIAdapter`
-      (reads ``WEATHER_API_KEY`` / ``WEATHER_API_URL`` env vars).
-    """
     global _service
     if _service is None:
-        # Import here to avoid pulling heavyweight AWS/HTTP deps into tests
-        # that inject a mock service via _set_service().
-        from src.infrastructure.aws.dynamodb_adapter import DynamoDBFavoritesService
-        from src.infrastructure.external.weather_api_adapter import WeatherAPIAdapter
-
-        favorites_port = DynamoDBFavoritesService()
-        weather_port = WeatherAPIAdapter()
-        _service = FavoritesService(
-            favorites_port=favorites_port,
-            weather_port=weather_port,
-        )
+        from src.application.container import ServiceContainer
+        _service = ServiceContainer.get_instance().favorites_service
     return _service
 
 

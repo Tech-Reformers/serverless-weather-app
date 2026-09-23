@@ -47,22 +47,10 @@ _service: Optional[UnitConversionService] = None
 
 
 def _get_service() -> UnitConversionService:
-    """Return the module-level :class:`UnitConversionService`, creating it on
-    first call (lazy init / warm-Lambda reuse pattern).
-
-    Wires together:
-    * :class:`~src.infrastructure.aws.dynamodb_adapter.DynamoDBUnitService`
-      (reads ``PREFERENCES_TABLE_NAME`` env var, defaults to
-      ``"weather-app-preferences"``).
-    """
     global _service
     if _service is None:
-        # Import here to avoid pulling heavyweight AWS deps into tests
-        # that inject a mock service via _set_service().
-        from src.infrastructure.aws.dynamodb_adapter import DynamoDBUnitService
-
-        unit_port = DynamoDBUnitService()
-        _service = UnitConversionService(unit_port=unit_port)
+        from src.application.container import ServiceContainer
+        _service = ServiceContainer.get_instance().unit_service
     return _service
 
 

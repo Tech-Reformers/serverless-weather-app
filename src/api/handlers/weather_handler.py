@@ -72,53 +72,19 @@ _CORS_HEADERS: dict[str, str] = {
 # ---------------------------------------------------------------------------
 # Lazy-initialised singletons (reused across warm Lambda invocations)
 # ---------------------------------------------------------------------------
-_weather_service: Optional[CachedWeatherDataService] = None
-_location_service: Optional[LocationService] = None
-_forecast_service: Optional[CachedForecastService] = None
-
-
 def _get_weather_service() -> CachedWeatherDataService:
-    """Return the shared :class:`CachedWeatherDataService`, initialising it on
-    first call.
-
-    Lazy initialisation avoids AWS SDK calls during the import phase (cold
-    start), which reduces the effective cold-start latency.
-    """
-    global _weather_service
-    if _weather_service is None:
-        cache = DynamoDBWeatherCache()
-        weather_port = WeatherAPIAdapter()
-        _weather_service = CachedWeatherDataService(
-            weather_port=weather_port,
-            cache=cache,
-            cache_strategy=CacheStrategy(),
-        )
-    return _weather_service
+    from src.application.container import ServiceContainer
+    return ServiceContainer.get_instance().weather_service
 
 
 def _get_location_service() -> LocationService:
-    """Return the shared :class:`LocationService`, initialising it on first
-    call."""
-    global _location_service
-    if _location_service is None:
-        geocoding_port = GeocodingAdapter()
-        _location_service = LocationService(location_port=geocoding_port)
-    return _location_service
+    from src.application.container import ServiceContainer
+    return ServiceContainer.get_instance().location_service
 
 
 def _get_forecast_service() -> CachedForecastService:
-    """Return the shared :class:`CachedForecastService`, initialising it on
-    first call."""
-    global _forecast_service
-    if _forecast_service is None:
-        cache = DynamoDBWeatherCache()
-        weather_port = WeatherAPIAdapter()
-        _forecast_service = CachedForecastService(
-            forecast_port=weather_port,
-            cache=cache,
-            cache_strategy=CacheStrategy(),
-        )
-    return _forecast_service
+    from src.application.container import ServiceContainer
+    return ServiceContainer.get_instance().forecast_service
 
 
 # ---------------------------------------------------------------------------

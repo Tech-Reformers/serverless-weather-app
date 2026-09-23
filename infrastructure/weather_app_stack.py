@@ -345,8 +345,10 @@ class WeatherAppStack(Stack):
                         # Install runtime-only deps into /asset-output
                         "pip install -r /asset-input/infrastructure/requirements-lambda.txt "
                         "-t /asset-output --quiet --no-cache-dir",
-                        # Copy application source
+                        # Copy application source, excluding Windows __pycache__ dirs and .pyc files
                         "cp -r /asset-input/src /asset-output/src",
+                        "find /asset-output/src -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true",
+                        "find /asset-output/src -name '*.pyc' -delete 2>/dev/null || true",
                         # Copy top-level __init__.py if it exists
                         "[ -f /asset-input/__init__.py ] && "
                         "cp /asset-input/__init__.py /asset-output/__init__.py || true",

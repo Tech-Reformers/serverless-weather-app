@@ -49,24 +49,11 @@ _CORS_HEADERS: dict[str, str] = {
 _forecast_service: CachedForecastService | None = None
 
 
-def _get_forecast_service() -> CachedForecastService:  # pragma: no cover – wired at runtime
-    """Return (and lazily build) the singleton CachedForecastService."""
+def _get_forecast_service() -> CachedForecastService:
     global _forecast_service  # noqa: PLW0603
     if _forecast_service is None:
-        # Import infrastructure only when actually needed so tests can inject
-        # their own service instance via ``_set_forecast_service``.
-        from src.infrastructure.cache.cache_strategy import CacheStrategy
-        from src.infrastructure.cache.dynamodb_cache import DynamoDBWeatherCache
-        from src.infrastructure.external.weather_api_adapter import WeatherAPIAdapter
-
-        weather_adapter = WeatherAPIAdapter()
-        cache = DynamoDBWeatherCache()
-        strategy = CacheStrategy()
-        _forecast_service = CachedForecastService(
-            forecast_port=weather_adapter,
-            cache=cache,
-            cache_strategy=strategy,
-        )
+        from src.application.container import ServiceContainer
+        _forecast_service = ServiceContainer.get_instance().forecast_service
     return _forecast_service
 
 

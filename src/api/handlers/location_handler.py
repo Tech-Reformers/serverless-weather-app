@@ -92,32 +92,14 @@ def _serialize_conditions(cond: CurrentConditions) -> dict:
 # Lazy service wiring
 # ---------------------------------------------------------------------------
 
-_location_service: Optional[LocationService] = None
-_weather_service: Optional[CachedWeatherDataService] = None
-
-
 def _get_location_service() -> LocationService:
-    """Return the shared LocationService, constructing it on first call."""
-    global _location_service
-    if _location_service is None:
-        adapter = GeocodingAdapter()
-        _location_service = LocationService(location_port=adapter)
-    return _location_service
+    from src.application.container import ServiceContainer
+    return ServiceContainer.get_instance().location_service
 
 
 def _get_weather_service() -> CachedWeatherDataService:
-    """Return the shared CachedWeatherDataService, constructing it on first call."""
-    global _weather_service
-    if _weather_service is None:
-        from src.infrastructure.external.weather_api_adapter import WeatherAPIAdapter
-        from src.infrastructure.cache.dynamodb_cache import DynamoDBWeatherCache
-        weather_adapter = WeatherAPIAdapter()
-        cache = DynamoDBWeatherCache()
-        _weather_service = CachedWeatherDataService(
-            weather_port=weather_adapter,
-            cache=cache,
-        )
-    return _weather_service
+    from src.application.container import ServiceContainer
+    return ServiceContainer.get_instance().weather_service
 
 
 # ---------------------------------------------------------------------------
