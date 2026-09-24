@@ -295,8 +295,9 @@ class WeatherAppStack(Stack):
             managed_policies=base_policies,
         )
         self.favorites_table.grant_read_write_data(self.favorites_lambda_role)
-        # Favorites list also fetches current temperatures (needs weather cache read)
+        # Favorites list also fetches current temperatures (needs weather cache read + API secret)
         self.cache_table.grant_read_data(self.favorites_lambda_role)
+        self.weather_api_secret.grant_read(self.favorites_lambda_role)
 
         # -- Preferences (Unit) Lambda role --------------------------------
         self.unit_lambda_role = iam.Role(

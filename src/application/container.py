@@ -59,6 +59,7 @@ from src.infrastructure.cache.cache_strategy import CacheStrategy
 from src.infrastructure.cache.dynamodb_cache import DynamoDBWeatherCache
 from src.infrastructure.external.geocoding_adapter import GeocodingAdapter
 from src.infrastructure.external.weather_api_adapter import WeatherAPIAdapter
+from src.infrastructure.external.forecast_api_adapter import ForecastAPIAdapter
 
 
 class ServiceContainer:
@@ -137,6 +138,21 @@ class ServiceContainer:
         if not api_key and os.environ.get("WEATHER_API_SECRET_ARN"):
             api_key = self.secrets_adapter.get_openweather_key()
         return WeatherAPIAdapter(
+            api_url=os.environ.get("WEATHER_API_URL"),
+            api_key=api_key,
+        )
+
+    @cached_property
+    def forecast_api_adapter(self) -> ForecastAPIAdapter:
+        """HTTP adapter for the OpenWeatherMap /forecast endpoint.
+
+        API key is fetched from Secrets Manager when WEATHER_API_SECRET_ARN
+        is set, falling back to WEATHER_API_KEY env var for local dev.
+        """
+        api_key = os.environ.get("WEATHER_API_KEY")
+        if not api_key and os.environ.get("WEATHER_API_SECRET_ARN"):
+            api_key = self.secrets_adapter.get_openweather_key()
+        return ForecastAPIAdapter(
             api_url=os.environ.get("WEATHER_API_URL"),
             api_key=api_key,
         )
@@ -222,7 +238,7 @@ class ServiceContainer:
         defined on ``ForecastServicePort``.
         """
         return CachedForecastService(
-            forecast_port=self.weather_api_adapter,  # type: ignore[arg-type]
+            forecast_port=self.forecast_api_adapter,
             cache=self.cache,
             cache_strategy=self.cache_strategy,
         )

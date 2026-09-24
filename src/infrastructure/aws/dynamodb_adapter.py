@@ -260,7 +260,7 @@ class DynamoDBFavoritesService(FavoritesServicePort):
             response = await _run_sync(
                 self._table.query,
                 KeyConditionExpression=Key("user_id").eq(user_id),
-                FilterExpression=Attr("location_id").ne(_COUNTER_SORT_KEY),
+                # NOTE: Cannot FilterExpression on sort-key (location_id); filter in Python instead
                 ProjectionExpression=_FAVORITES_PROJECTION,
                 ExpressionAttributeNames=_FAVORITES_PROJECTION_NAMES,
             )
