@@ -158,12 +158,12 @@ class DynamoDBFavoritesService(FavoritesServicePort):
             await _run_sync(
                 self._table.update_item,
                 Key={"user_id": user_id, "location_id": _COUNTER_SORT_KEY},
-                UpdateExpression="ADD #cnt :inc SET #uid = :uid",
+                UpdateExpression="ADD #cnt :inc",
                 ConditionExpression=(
                     "attribute_not_exists(#cnt) OR #cnt < :limit"
                 ),
-                ExpressionAttributeNames={"#cnt": "count", "#uid": "user_id"},
-                ExpressionAttributeValues={":inc": 1, ":limit": _MAX_FAVORITES, ":uid": user_id},
+                ExpressionAttributeNames={"#cnt": "count"},
+                ExpressionAttributeValues={":inc": 1, ":limit": _MAX_FAVORITES},
             )
         except ClientError as exc:
             code = exc.response["Error"]["Code"]
