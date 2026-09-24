@@ -261,8 +261,9 @@ class WeatherAppStack(Stack):
             assumed_by=lambda_principal,
             managed_policies=base_policies,
         )
-        # Location service only needs to read the API secret
+        # Location service reads the API secret and uses weather cache
         self.weather_api_secret.grant_read(self.location_lambda_role)
+        self.cache_table.grant_read_write_data(self.location_lambda_role)
 
         # -- Weather Lambda role --------------------------------------------
         self.weather_lambda_role = iam.Role(
@@ -295,8 +296,8 @@ class WeatherAppStack(Stack):
             managed_policies=base_policies,
         )
         self.favorites_table.grant_read_write_data(self.favorites_lambda_role)
-        # Favorites list also fetches current temperatures (needs weather cache read + API secret)
-        self.cache_table.grant_read_data(self.favorites_lambda_role)
+        # Favorites list fetches current temperatures (needs weather cache read+write + API secret)
+        self.cache_table.grant_read_write_data(self.favorites_lambda_role)
         self.weather_api_secret.grant_read(self.favorites_lambda_role)
 
         # -- Preferences (Unit) Lambda role --------------------------------
@@ -501,11 +502,10 @@ class WeatherAppStack(Stack):
             description="Serverless Weather App REST API",
             deploy_options=apigw.StageOptions(
                 stage_name="v1",
-                # Enable API Gateway caching (5 min) — design.md §Property 28
-                caching_enabled=True,
-                cache_ttl=APIGW_CACHE_TTL,
-                cache_cluster_enabled=True,
-                cache_cluster_size="0.5",
+                # API GW caching disabled — DynamoDB cache (15 min TTL) handles caching
+                # at the Lambda level. API GW caching caused issues with URL-encoded
+                # query params (spaces in city names breaking cache key matching).
+                caching_enabled=False,
                 # Access logging
                 access_log_destination=apigw.LogGroupLogDestination(
                     self.api_access_log_group
